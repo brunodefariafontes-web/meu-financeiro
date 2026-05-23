@@ -3,16 +3,22 @@ import pandas as pd
 import os
 import hashlib
 from datetime import datetime
+import time
 
 st.set_page_config(page_title="Controle Financeiro", page_icon="🏠")
 
 # =====================
-# USUÁRIOS AUTORIZADOS
+# CONFIG
 # =====================
 USERS_FIXOS = {
     "43623202886": {"nome": "Bruno"},
     "42899462830": {"nome": "Ingrid"}
 }
+
+META_CASA = 500000
+
+ARQ_USERS = "users.csv"
+ARQ_DATA = "dados.csv"
 
 # =====================
 # HASH
@@ -23,9 +29,6 @@ def hash_senha(s):
 # =====================
 # ARQUIVOS
 # =====================
-ARQ_USERS = "users.csv"
-ARQ_DATA = "dados.csv"
-
 if not os.path.exists(ARQ_USERS):
     pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
 
@@ -36,17 +39,32 @@ users = pd.read_csv(ARQ_USERS)
 df = pd.read_csv(ARQ_DATA)
 
 # =====================
-# SESSION
+# SESSION STATE
 # =====================
 if "cpf" not in st.session_state:
     st.session_state.cpf = None
+
+if "last_action" not in st.session_state:
+    st.session_state.last_action = time.time()
+
+# =====================
+# TIMEOUT 10 MIN
+# =====================
+def check_timeout():
+    if st.session_state.cpf is not None:
+        if time.time() - st.session_state.last_action > 600:  # 10 min
+            st.session_state.cpf = None
+            st.warning("⏳ Sessão expirada por inatividade")
+            st.rerun()
+
+check_timeout()
 
 # =====================
 # LOGIN
 # =====================
 if st.session_state.cpf is None:
 
-    st.title("🔐 Acesso")
+    st.title("🔐 Acesso ao Sistema")
 
     cpf = st.text_input("CPF")
 
@@ -60,7 +78,8 @@ if st.session_state.cpf is None:
 
     if st.button("Entrar"):
 
-        # se já existe usuário
+        st.session_state.last_action = time.time()
+
         if cpf in users["cpf"].values:
 
             senha_salva = users[users["cpf"] == cpf]["senha"].values[0]
@@ -72,7 +91,6 @@ if st.session_state.cpf is None:
                 st.error("Senha incorreta")
 
         else:
-            # primeiro acesso cria conta
             nova = pd.DataFrame([[cpf, hash_senha(senha)]],
                                 columns=users.columns)
 
@@ -86,15 +104,13 @@ if st.session_state.cpf is None:
     st.stop()
 
 # =====================
-# APP PRINCIPAL (AQUI ESTAVA FALTANDO!)
+# APP LOGADO
 # =====================
+st.session_state.last_action = time.time()
+
 nome = USERS_FIXOS[st.session_state.cpf]["nome"]
 
 st.title(f"🏠 Controle Financeiro de {nome}")
-
-META_CASA = 500000
-
-st.divider()
 
 # =====================
 # LANÇAR
@@ -111,6 +127,8 @@ valor = st.number_input("Valor", min_value=0.0)
 
 if st.button("Adicionar"):
 
+    st.session_state.last_action = time.time()
+
     data = datetime.now().strftime("%Y-%m-%d")
 
     novo = pd.DataFrame([[st.session_state.cpf,data,tipo,descricao,valor]],
@@ -119,12 +137,12 @@ if st.button("Adicionar"):
     df = pd.concat([df, novo], ignore_index=True)
     df.to_csv(ARQ_DATA, index=False)
 
-    st.success("Salvo!")
+    st.success("✔ Lançado!")
 
 st.divider()
 
 # =====================
-# FILTRAR USUÁRIO
+# FILTRO USER
 # =====================
 df_user = df[df["cpf"] == st.session_state.cpf]
 
