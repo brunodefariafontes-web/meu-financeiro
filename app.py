@@ -12,33 +12,54 @@ USUARIOS = {
 
 ARQ_USERS = "users.csv"
 
-def hash_senha(s):
-    return hashlib.sha256(s.encode()).hexdigest()
+# =====================
+# HASH
+# =====================
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
 
 # =====================
-# ARQUIVO
+# CRIA CSV
 # =====================
 if not os.path.exists(ARQ_USERS):
-    pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
-
-users = pd.read_csv(ARQ_USERS)
-
-if "cpf_logado" not in st.session_state:
-    st.session_state.cpf_logado = None
-
-if "cpf_temp" not in st.session_state:
-    st.session_state.cpf_temp = ""
-
-if "modo" not in st.session_state:
-    st.session_state.modo = "cpf"  # cpf / login / cadastro
+    df = pd.DataFrame(columns=["cpf", "senha"])
+    df.to_csv(ARQ_USERS, index=False)
 
 # =====================
-# TELA CPF
+# LÊ CSV
+# =====================
+users = pd.read_csv(ARQ_USERS)
+
+# =====================
+# SESSION
+# =====================
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+
+if "cpf_logado" not in st.session_state:
+    st.session_state.cpf_logado = ""
+
+# =====================
+# APP LOGADO
+# =====================
+if st.session_state.logado:
+
+    st.title(f"🏠 Bem-vindo {USUARIOS[st.session_state.cpf_logado]}")
+    st.success("Login realizado com sucesso ✔")
+
+    if st.button("Sair"):
+        st.session_state.logado = False
+        st.session_state.cpf_logado = ""
+        st.rerun()
+
+    st.stop()
+
+# =====================
+# LOGIN / CADASTRO
 # =====================
 st.title("🔐 Acesso ao Sistema")
 
-cpf = st.text_input("CPF", value=st.session_state.cpf_temp)
-st.session_state.cpf_temp = cpf
+cpf = st.text_input("CPF")
 
 if cpf == "":
     st.stop()
@@ -50,7 +71,7 @@ if cpf not in USUARIOS:
 st.success(f"Olá {USUARIOS[cpf]}")
 
 # =====================
-# SE USUÁRIO JÁ EXISTE → LOGIN
+# LOGIN
 # =====================
 if cpf in users["cpf"].values:
 
@@ -60,20 +81,27 @@ if cpf in users["cpf"].values:
 
     if st.button("Entrar"):
 
-        senha_salva = users.loc[users["cpf"] == cpf, "senha"].values[0]
+        senha_salva = users.loc[
+            users["cpf"] == cpf,
+            "senha"
+        ].values[0]
 
         if hash_senha(senha) == senha_salva:
+
+            st.session_state.logado = True
             st.session_state.cpf_logado = cpf
+
             st.rerun()
+
         else:
             st.error("Senha incorreta")
 
 # =====================
-# SE NÃO EXISTE → CADASTRO
+# CADASTRO
 # =====================
 else:
 
-    st.subheader("🆕 Criar conta")
+    st.subheader("🆕 Criar Conta")
 
     senha1 = st.text_input("Criar senha", type="password")
     senha2 = st.text_input("Confirmar senha", type="password")
@@ -85,28 +113,18 @@ else:
             st.stop()
 
         if senha1 != senha2:
-            st.error("Senhas não coincidem")
+            st.error("As senhas não coincidem")
             st.stop()
 
-        users = pd.concat([
-            users,
-            pd.DataFrame([[cpf, hash_senha(senha1)]], columns=["cpf","senha"])
-        ], ignore_index=True)
+        novo = pd.DataFrame([
+            [cpf, hash_senha(senha1)]
+        ], columns=["cpf", "senha"])
 
+        users = pd.concat([users, novo], ignore_index=True)
+
+        # 🔥 SALVA DE VERDADE
         users.to_csv(ARQ_USERS, index=False)
 
-        st.success("Conta criada! Agora faça login.")
-        st.rerun()
+        st.success("Conta criada com sucesso!")
 
-# =====================
-# APP (SÓ ENTRA SE LOGADO)
-# =====================
-if st.session_state.cpf_logado is not None:
-
-    st.title(f"🏠 Bem-vindo {USUARIOS[st.session_state.cpf_logado]}")
-
-    st.success("Login realizado com sucesso ✔")
-
-    if st.button("Sair"):
-        st.session_state.cpf_logado = None
-        st.rerun()
+        st.info("Agora faça login com sua senha.")
