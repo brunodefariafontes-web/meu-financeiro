@@ -1,110 +1,107 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+import hashlib
+
+st.set_page_config(page_title="Controle Financeiro", page_icon="🏠")
+
+USERS_FILE = "users.csv"
+ARQ = "dados.csv"
 
 # =====================
-# CONFIG
+# USUÁRIOS FIXOS AUTORIZADOS
 # =====================
-st.set_page_config(
-    page_title="Controle Financeiro",
-    page_icon="🏠",
-    layout="centered"
-)
-
-st.title("🏠 Controle Financeiro Inteligente")
-
-META_CASA = 500000
-ARQUIVO = "dados.csv"
-
-# =====================
-# CRIAR ARQUIVO
-# =====================
-if not os.path.exists(ARQUIVO):
-    df = pd.DataFrame(columns=["data", "tipo", "descricao", "valor"])
-    df.to_csv(ARQUIVO, index=False)
-
-df = pd.read_csv(ARQUIVO)
+USERS_FIXOS = {
+    "43623202886": {
+        "nome": "Bruno",
+        "msg": "Olá Bruno, seja bem-vindo!"
+    },
+    "42899462830": {
+        "nome": "Ingrid",
+        "msg": "Olá Ingrid, seja bem-vinda!"
+    }
+}
 
 # =====================
-# ENTRADA PRIMEIRO (FOCO PRINCIPAL)
+# HASH SENHA
 # =====================
-st.subheader("➕ Lançar rápido")
-
-tipo = st.selectbox(
-    "Tipo",
-    [
-        "💰 Salário",
-        "🏠 Reserva Casa",
-        "💡 Luz",
-        "🚿 Água",
-        "📶 Internet",
-        "💳 Cartão",
-        "🏠 Aluguel",
-        "🛒 Comprinhas",
-        "🍔 Lazer",
-        "🛍 Mercado",
-        "💸 Outros"
-    ]
-)
-
-descricao = st.text_input("Descrição")
-valor = st.number_input("Valor (R$)", min_value=0.0)
-
-if st.button("Adicionar"):
-    data = datetime.now().strftime("%Y-%m-%d")
-
-    novo = pd.DataFrame([[data, tipo, descricao, valor]],
-                        columns=df.columns)
-
-    df = pd.concat([df, novo], ignore_index=True)
-    df.to_csv(ARQUIVO, index=False)
-
-    st.success("✔ Salvo com sucesso!")
-
-st.divider()
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
 
 # =====================
-# RESUMO MAIS PRA BAIXO (AGORA SIM)
+# ARQUIVOS
 # =====================
-st.subheader("📊 Resumo financeiro")
+if not os.path.exists(USERS_FILE):
+    pd.DataFrame(columns=["cpf", "senha", "biometria"]).to_csv(USERS_FILE, index=False)
 
-if len(df) == 0:
-    st.info("Ainda sem dados.")
+if not os.path.exists(ARQ):
+    pd.DataFrame(columns=["cpf", "data", "tipo", "descricao", "valor"]).to_csv(ARQ, index=False)
+
+users = pd.read_csv(USERS_FILE)
+
+# =====================
+# ESTADO
+# =====================
+if "cpf_logado" not in st.session_state:
+    st.session_state.cpf_logado = None
+
+# =====================
+# LOGIN CPF
+# =====================
+if st.session_state.cpf_logado is None:
+
+    st.title("🔐 Acesso ao Sistema")
+
+    cpf = st.text_input("Digite seu CPF")
+
+    if cpf not in USERS_FIXOS:
+        st.error("❌ CPF não autorizado")
+        st.stop()
+
+    user_info = USERS_FIXOS[cpf]
+
+    st.success(user_info["msg"])
+
+    st.write("📌 Crie sua senha e confirme o acesso")
+
+    senha = st.text_input("Senha", type="password")
+
+    biometria = st.checkbox("✔ Confirmo cadastro de biometria (simulado)")
+
+    if st.button("Entrar / Cadastrar"):
+
+        if not biometria:
+            st.warning("Você precisa confirmar a biometria (simulado)")
+            st.stop()
+
+        # verifica se já existe
+        if cpf in users["cpf"].values:
+
+            senha_salva = users[users["cpf"] == cpf]["senha"].values[0]
+
+            if hash_senha(senha) == senha_salva:
+                st.session_state.cpf_logado = cpf
+                st.rerun()
+            else:
+                st.error("Senha incorreta")
+
+        else:
+            # primeiro acesso -> cria conta
+            nova = pd.DataFrame([[cpf, hash_senha(senha), True]],
+                                columns=users.columns)
+
+            users = pd.concat([users, nova], ignore_index=True)
+            users.to_csv(USERS_FILE, index=False)
+
+            st.session_state.cpf_logado = cpf
+            st.success("Conta criada com sucesso!")
+            st.rerun()
+
     st.stop()
 
-salario = df[df["tipo"] == "💰 Salário"]["valor"].sum()
-reserva = df[df["tipo"] == "🏠 Reserva Casa"]["valor"].sum()
-gastos = df[df["tipo"] != "💰 Salário"]["valor"].sum()
+# =====================
+# USUÁRIO LOGADO
+# =====================
+nome = USERS_FIXOS[st.session_state.cpf_logado]["nome"]
 
-saldo = salario - gastos
-
-falta = META_CASA - reserva
-progresso = reserva / META_CASA if META_CASA > 0 else 0
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric("💰 Salário", f"R$ {salario:,.2f}")
-col2.metric("💸 Gastos", f"R$ {gastos:,.2f}")
-col3.metric("💰 Saldo", f"R$ {saldo:,.2f}")
-
-st.divider()
-
-st.subheader("🏠 Meta da Casa (R$ 500.000)")
-
-st.write(f"💵 Reservado: R$ {reserva:,.2f}")
-st.write(f"🏠 Falta: R$ {falta:,.2f}")
-
-st.progress(min(progresso, 1.0))
-
-if progresso >= 1:
-    st.success("🎉 Você atingiu a meta da casa!")
-elif progresso >= 0.7:
-    st.warning("🟡 Quase lá!")
-else:
-    st.info("🔵 Continue economizando")
-
-st.divider()
-
-st.subheader("📋 Últimos lançamentos")
-st.dataframe(df.tail(10), use_container_width=True)
+st.title(f"🏠 Olá {nome}, bem-vindo ao seu controle financeiro")
