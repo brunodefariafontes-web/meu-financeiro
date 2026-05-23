@@ -5,9 +5,6 @@ import hashlib
 
 st.set_page_config(page_title="Controle Financeiro", page_icon="🏠")
 
-# =====================
-# USUÁRIOS PERMITIDOS
-# =====================
 USUARIOS = {
     "43623202886": "Bruno",
     "42899462830": "Ingrid"
@@ -15,9 +12,6 @@ USUARIOS = {
 
 ARQ_USERS = "users.csv"
 
-# =====================
-# HASH
-# =====================
 def hash_senha(s):
     return hashlib.sha256(s.encode()).hexdigest()
 
@@ -29,37 +23,33 @@ if not os.path.exists(ARQ_USERS):
 
 users = pd.read_csv(ARQ_USERS)
 
+# garante estrutura
+if "cpf" not in users.columns or "senha" not in users.columns:
+    users = pd.DataFrame(columns=["cpf", "senha"])
+
+# =====================
+# SESSION
+# =====================
 if "cpf_logado" not in st.session_state:
     st.session_state.cpf_logado = None
 
-if "modo" not in st.session_state:
-    st.session_state.modo = "cpf"
-
 # =====================
-# LOGOUT AUTOMÁTICO SIMPLES (reset)
-# =====================
-def reset():
-    st.session_state.cpf_logado = None
-    st.session_state.modo = "cpf"
-
-# =====================
-# TELA DE LOGIN / CADASTRO
+# LOGIN / CADASTRO
 # =====================
 if st.session_state.cpf_logado is None:
 
     st.title("🔐 Sistema de Acesso")
 
-    cpf = st.text_input("Digite seu CPF")
+    cpf = st.text_input("CPF")
 
     if cpf not in USUARIOS:
         st.warning("CPF não autorizado")
         st.stop()
 
-    nome = USUARIOS[cpf]
-    st.success(f"Olá {nome}")
+    st.success(f"Olá {USUARIOS[cpf]}")
 
     # =====================
-    # SE USUÁRIO JÁ EXISTE → LOGIN
+    # SE EXISTE → LOGIN
     # =====================
     if cpf in users["cpf"].values:
 
@@ -78,7 +68,7 @@ if st.session_state.cpf_logado is None:
                 st.error("Senha incorreta")
 
     # =====================
-    # PRIMEIRO ACESSO → CADASTRO
+    # NÃO EXISTE → CADASTRO
     # =====================
     else:
 
@@ -90,33 +80,34 @@ if st.session_state.cpf_logado is None:
         if st.button("Cadastrar"):
 
             if senha1 == "" or senha2 == "":
-                st.warning("Preencha os campos")
+                st.warning("Preencha todos os campos")
                 st.stop()
 
             if senha1 != senha2:
-                st.error("As senhas não coincidem")
+                st.error("Senhas não coincidem")
                 st.stop()
 
-            novo = pd.DataFrame([[cpf, hash_senha(senha1)]],
-                                columns=["cpf", "senha"])
+            users = pd.concat([
+                users,
+                pd.DataFrame([[cpf, hash_senha(senha1)]], columns=["cpf", "senha"])
+            ], ignore_index=True)
 
-            users = pd.concat([users, novo], ignore_index=True)
             users.to_csv(ARQ_USERS, index=False)
 
-            st.success("Conta criada! Agora faça login.")
-            st.stop()
+            # 🔥 IMPORTANTE: já faz login automático depois do cadastro
+            st.session_state.cpf_logado = cpf
+            st.success("Conta criada com sucesso!")
+            st.rerun()
 
     st.stop()
 
 # =====================
 # APP LOGADO
 # =====================
-nome = USUARIOS[st.session_state.cpf_logado]
-
-st.title(f"🏠 Bem-vindo {nome}")
+st.title(f"🏠 Bem-vindo {USUARIOS[st.session_state.cpf_logado]}")
 
 st.success("Login realizado com sucesso ✔")
 
 if st.button("Sair"):
-    reset()
+    st.session_state.cpf_logado = None
     st.rerun()
