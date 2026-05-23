@@ -35,14 +35,20 @@ if not os.path.exists(ARQUIVO):
         ]
     )
 
-    df_inicial.to_csv(ARQUIVO, index=False)
+    df_inicial.to_csv(
+        ARQUIVO,
+        index=False
+    )
 
 # =====================
 # LER CSV
 # =====================
 try:
+
     df = pd.read_csv(ARQUIVO)
+
 except:
+
     df = pd.DataFrame(
         columns=[
             "Usuario",
@@ -69,26 +75,29 @@ if not st.session_state.logado:
 
     st.title("🔐 Acesso ao Sistema")
 
-    st.subheader("🏠 Controle Financeiro")
-
     cpf = st.text_input(
         "Digite seu CPF",
         max_chars=11
     ).strip()
 
-    cpf = ''.join(filter(str.isdigit, cpf))
+    cpf = ''.join(
+        filter(str.isdigit, cpf)
+    )
 
     if st.button("Entrar"):
 
-        if str(cpf) in USUARIOS:
+        if cpf in USUARIOS:
 
             st.session_state.logado = True
-            st.session_state.usuario = USUARIOS[str(cpf)]
+            st.session_state.usuario = USUARIOS[cpf]
 
             st.rerun()
 
         else:
-            st.error("CPF não autorizado")
+
+            st.error(
+                "CPF não autorizado"
+            )
 
     st.stop()
 
@@ -98,24 +107,44 @@ if not st.session_state.logado:
 usuario = st.session_state.usuario
 
 # =====================
-# DADOS GERAIS
+# DADOS
 # =====================
 df_user = df
 
 # =====================
-# RESUMOS
+# RESERVA CASA
+# =====================
+entrada_casa = df_user[
+    df_user["Tipo"] == "🏠 Reserva Casa"
+]["Valor"].sum()
+
+saida_casa = df_user[
+    df_user["Tipo"] == "🏠 Retirada Casa"
+]["Valor"].sum()
+
+reserva_casa = entrada_casa - saida_casa
+
+if reserva_casa < 0:
+    reserva_casa = 0
+
+# =====================
+# SALÁRIO
 # =====================
 salario = df_user[
     df_user["Tipo"] == "💰 Salário"
 ]["Valor"].sum()
 
-reserva_casa = df_user[
-    df_user["Tipo"] == "🏠 Reserva Casa"
-]["Valor"].sum()
-
+# =====================
+# GASTOS
+# =====================
 gastos = df_user[
-    (df_user["Tipo"] != "💰 Salário") &
-    (df_user["Tipo"] != "🏠 Reserva Casa")
+    (
+        (df_user["Tipo"] != "💰 Salário")
+        &
+        (df_user["Tipo"] != "🏠 Reserva Casa")
+        &
+        (df_user["Tipo"] != "🏠 Retirada Casa")
+    )
 ]["Valor"].sum()
 
 saldo = salario - gastos - reserva_casa
@@ -133,12 +162,16 @@ if progresso > 1:
 # =====================
 # APP
 # =====================
-st.title(f"🏠 Controle Financeiro - {usuario}")
+st.title(
+    f"🏠 Controle Financeiro - {usuario}"
+)
 
-st.success("Acesso realizado com sucesso ✔")
+st.success(
+    "Acesso realizado com sucesso ✔"
+)
 
 # =====================
-# RESUMO FIXO
+# RESUMO
 # =====================
 st.divider()
 
@@ -165,7 +198,7 @@ col2.metric(
 )
 
 col3.metric(
-    "🏠 Casa",
+    "🏠 Reserva",
     f"R$ {reserva_casa:,.2f}"
 )
 
@@ -175,19 +208,29 @@ col4.metric(
 )
 
 # =====================
-# PROGRESSO CASA
+# CASA
 # =====================
 st.divider()
 
 st.subheader("📈 Progresso da Casa")
 
-st.write(f"🎯 Meta: R$ {META_CASA:,.2f}")
-st.write(f"💵 Reservado: R$ {reserva_casa:,.2f}")
-st.write(f"📉 Falta: R$ {falta_casa:,.2f}")
+st.write(
+    f"🎯 Meta: R$ {META_CASA:,.2f}"
+)
+
+st.write(
+    f"💵 Reservado: R$ {reserva_casa:,.2f}"
+)
+
+st.write(
+    f"📉 Falta: R$ {falta_casa:,.2f}"
+)
 
 st.progress(progresso)
 
-st.write(f"📊 Progresso: {progresso * 100:.2f}%")
+st.write(
+    f"📊 Progresso: {progresso * 100:.2f}%"
+)
 
 # =====================
 # ANÁLISE
@@ -199,31 +242,31 @@ st.subheader("🧠 Análise Financeira")
 if salario == 0:
 
     st.warning(
-        "Cadastre um salário para iniciar a análise financeira."
+        "Cadastre um salário para iniciar a análise."
     )
 
 else:
 
-    percentual = (gastos / salario) * 100
+    percentual = (
+        gastos / salario
+    ) * 100
 
     if percentual > 80:
 
         st.error(
-            "⚠ Seus gastos estão muito altos. "
-            "Isso pode atrasar bastante a compra da casa."
+            "⚠ Seus gastos estão muito altos."
         )
 
     elif percentual > 60:
 
         st.warning(
-            "⚠ Seus gastos estão moderados. "
-            "Tente reduzir compras não essenciais."
+            "⚠ Seus gastos estão moderados."
         )
 
     else:
 
         st.success(
-            "✅ Seu controle financeiro está saudável."
+            "✅ Controle financeiro saudável."
         )
 
 # =====================
@@ -233,7 +276,10 @@ st.divider()
 
 st.subheader("➕ Novo Lançamento")
 
-with st.form("form_lancamento", clear_on_submit=True):
+with st.form(
+    "form_lancamento",
+    clear_on_submit=True
+):
 
     col_a, col_b = st.columns(2)
 
@@ -244,6 +290,7 @@ with st.form("form_lancamento", clear_on_submit=True):
             [
                 "💰 Salário",
                 "🏠 Reserva Casa",
+                "🏠 Retirada Casa",
                 "💳 Cartão",
                 "💡 Luz",
                 "🚿 Água",
@@ -265,33 +312,40 @@ with st.form("form_lancamento", clear_on_submit=True):
             step=1.0
         )
 
-    descricao = st.text_input("Descrição")
+    descricao = st.text_input(
+        "Descrição"
+    )
 
     # =====================
-    # ALERTA ANTES DO GASTO
+    # ALERTA
     # =====================
-    if tipo != "💰 Salário":
+    if (
+        tipo != "💰 Salário"
+        and tipo != "🏠 Reserva Casa"
+    ):
 
         if valor > 1000:
 
             st.error(
                 "⚠ Valor alto detectado. "
-                "Pense na casa antes de concluir esse gasto."
+                "Pense na casa."
             )
 
         elif valor > 300:
 
             st.warning(
-                "⚠ Esse gasto pode atrasar sua meta da casa."
+                "⚠ Esse gasto pode atrasar sua casa."
             )
 
         elif valor > 0:
 
             st.info(
-                "🏠 Pequenos gastos recorrentes também impactam sua meta."
+                "🏠 Pequenos gastos também impactam sua meta."
             )
 
-    salvar = st.form_submit_button("Salvar Lançamento")
+    salvar = st.form_submit_button(
+        "Salvar Lançamento"
+    )
 
     if salvar:
 
@@ -301,24 +355,36 @@ with st.form("form_lancamento", clear_on_submit=True):
                 "Tipo": tipo,
                 "Descricao": descricao,
                 "Valor": valor,
-                "Data": datetime.now().strftime("%d/%m/%Y %H:%M")
+                "Data": datetime.now().strftime(
+                    "%d/%m/%Y %H:%M"
+                )
             }
         ])
 
-        df = pd.concat([df, novo], ignore_index=True)
+        df = pd.concat(
+            [df, novo],
+            ignore_index=True
+        )
 
-        df.to_csv(ARQUIVO, index=False)
+        df.to_csv(
+            ARQUIVO,
+            index=False
+        )
 
-        st.success("Lançamento salvo com sucesso ✔")
+        st.success(
+            "Lançamento salvo ✔"
+        )
 
         st.rerun()
 
 # =====================
-# LANÇAMENTOS
+# HISTÓRICO
 # =====================
 st.divider()
 
-st.subheader("📋 Histórico de Lançamentos")
+st.subheader(
+    "📋 Histórico de Lançamentos"
+)
 
 if len(df_user) > 0:
 
@@ -332,7 +398,9 @@ if len(df_user) > 0:
         "DataFormatada"
     ].dt.strftime("%B %Y")
 
-    meses = df_user["Mes"].dropna().unique()[::-1]
+    meses = df_user[
+        "Mes"
+    ].dropna().unique()[::-1]
 
     for mes in meses:
 
@@ -354,9 +422,13 @@ if len(df_user) > 0:
                     [2, 3, 2, 2, 1]
                 )
 
-                col1.write(row["Tipo"])
+                col1.write(
+                    row["Tipo"]
+                )
 
-                col2.write(row["Descricao"])
+                col2.write(
+                    row["Descricao"]
+                )
 
                 col3.write(
                     f'R$ {row["Valor"]:,.2f}'
@@ -393,13 +465,13 @@ else:
     )
 
 # =====================
-# EXPORTAR CSV
+# EXPORTAR
 # =====================
 st.divider()
 
-st.subheader("📤 Exportar Dados")
-
-csv = df_user.to_csv(index=False).encode("utf-8")
+csv = df_user.to_csv(
+    index=False
+).encode("utf-8")
 
 st.download_button(
     label="📥 Baixar CSV",
@@ -409,17 +481,13 @@ st.download_button(
 )
 
 # =====================
-# ZERAR DADOS
+# ZERAR
 # =====================
 st.divider()
 
-st.subheader("🗑 Reiniciar Controle")
-
-st.warning(
-    "Essa ação apagará todos os lançamentos."
-)
-
-if st.button("Zerar Todos os Dados"):
+if st.button(
+    "🗑 Zerar Todos os Dados"
+):
 
     df = pd.DataFrame(
         columns=[
@@ -431,9 +499,14 @@ if st.button("Zerar Todos os Dados"):
         ]
     )
 
-    df.to_csv(ARQUIVO, index=False)
+    df.to_csv(
+        ARQUIVO,
+        index=False
+    )
 
-    st.success("Todos os dados foram apagados ✔")
+    st.success(
+        "Todos os dados foram apagados ✔"
+    )
 
     st.rerun()
 
