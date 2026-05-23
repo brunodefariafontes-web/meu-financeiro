@@ -25,7 +25,7 @@ if "usuario" not in st.session_state:
 # =====================
 # LOGIN
 # =====================
-if not st.session_state.logado:
+if st.session_state.logado == False:
 
     st.title("🔐 Acesso ao Sistema")
 
@@ -38,28 +38,32 @@ if not st.session_state.logado:
             st.session_state.logado = True
             st.session_state.usuario = USUARIOS[cpf]
 
-            st.rerun()
-
         else:
             st.error("CPF não autorizado")
-
-    st.stop()
 
 # =====================
 # APP
 # =====================
-st.title(f"🏠 Bem-vindo {st.session_state.usuario}")
+if st.session_state.logado:
 
-st.success("Acesso realizado com sucesso ✔")
+    st.title(f"🏠 Bem-vindo {st.session_state.usuario}")
 
-st.write("Seu aplicativo financeiro está funcionando.")
+    st.success("Acesso realizado com sucesso ✔")
 
-# =====================
-# SAIR
-# =====================
-if st.button("Sair"):
+    st.write("Seu aplicativo financeiro está funcionando.")
 
-    st.session_state.logado = False
-    st.session_state.usuario = ""
+    st.subheader("📊 Painel Financeiro")
 
-    st.rerun()
+    st.write("Aqui ficará:")
+    st.write("• Salário")
+    st.write("• Gastos")
+    st.write("• Reserva da casa")
+    st.write("• Cartão")
+    st.write("• Gráficos")
+
+    if st.button("Sair"):
+
+        st.session_state.logado = False
+        st.session_state.usuario = ""
+
+        st.rerun()
