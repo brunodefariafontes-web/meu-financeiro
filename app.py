@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 st.set_page_config(
     page_title="Controle Financeiro",
@@ -8,14 +9,32 @@ st.set_page_config(
 )
 
 # =====================
-# USUÁRIOS
+# CONFIG
 # =====================
+META_CASA = 500000
+
 USUARIOS = {
     "43623202886": "Bruno",
     "42899462830": "Ingrid"
 }
 
-META_CASA = 500000
+ARQUIVO = "dados_financeiros.csv"
+
+# =====================
+# CRIAR CSV
+# =====================
+if not os.path.exists(ARQUIVO):
+
+    df_inicial = pd.DataFrame(
+        columns=["Usuario", "Tipo", "Descricao", "Valor"]
+    )
+
+    df_inicial.to_csv(ARQUIVO, index=False)
+
+# =====================
+# LER CSV
+# =====================
+df = pd.read_csv(ARQUIVO)
 
 # =====================
 # SESSION
@@ -25,9 +44,6 @@ if "logado" not in st.session_state:
 
 if "usuario" not in st.session_state:
     st.session_state.usuario = ""
-
-if "dados" not in st.session_state:
-    st.session_state.dados = []
 
 # =====================
 # LOGIN
@@ -53,9 +69,14 @@ if not st.session_state.logado:
     st.stop()
 
 # =====================
+# USUÁRIO
+# =====================
+usuario = st.session_state.usuario
+
+# =====================
 # APP
 # =====================
-st.title(f"🏠 Controle Financeiro - {st.session_state.usuario}")
+st.title(f"🏠 Controle Financeiro - {usuario}")
 
 st.success("Acesso realizado com sucesso ✔")
 
@@ -91,31 +112,45 @@ valor = st.number_input(
 
 if st.button("Salvar"):
 
-    st.session_state.dados.append({
+    novo = pd.DataFrame([{
+        "Usuario": usuario,
         "Tipo": tipo,
-        "Descrição": descricao,
+        "Descricao": descricao,
         "Valor": valor
-    })
+    }])
+
+    df = pd.concat([df, novo], ignore_index=True)
+
+    df.to_csv(ARQUIVO, index=False)
 
     st.success("Lançamento salvo!")
+
+    st.rerun()
+
+# =====================
+# FILTRO USUÁRIO
+# =====================
+df_user = df[df["Usuario"] == usuario]
 
 # =====================
 # RESUMO
 # =====================
-if len(st.session_state.dados) > 0:
-
-    df = pd.DataFrame(st.session_state.dados)
+if len(df_user) > 0:
 
     st.divider()
 
     st.subheader("📊 Resumo Financeiro")
 
-    salario = df[df["Tipo"] == "💰 Salário"]["Valor"].sum()
+    salario = df_user[
+        df_user["Tipo"] == "💰 Salário"
+    ]["Valor"].sum()
 
-    reserva_casa = df[df["Tipo"] == "🏠 Reserva Casa"]["Valor"].sum()
+    reserva_casa = df_user[
+        df_user["Tipo"] == "🏠 Reserva Casa"
+    ]["Valor"].sum()
 
-    gastos = df[
-        df["Tipo"] != "💰 Salário"
+    gastos = df_user[
+        df_user["Tipo"] != "💰 Salário"
     ]["Valor"].sum()
 
     saldo = salario - gastos
@@ -155,32 +190,37 @@ if len(st.session_state.dados) > 0:
     st.write(f"📊 Progresso: {porcentagem:.2f}%")
 
     # =====================
-    # ALERTAS
+    # ANÁLISE
     # =====================
     st.divider()
 
     st.subheader("🧠 Análise Financeira")
 
     if salario == 0:
-        st.warning("Cadastre seu salário para análise financeira.")
+
+        st.warning(
+            "Cadastre seu salário para análise."
+        )
 
     else:
 
         percentual_gasto = (gastos / salario) * 100
 
         if percentual_gasto > 80:
+
             st.error(
-                "⚠ Seus gastos estão muito altos. "
-                "Diminua despesas para acelerar a compra da casa."
+                "⚠ Seus gastos estão altos. "
+                "Diminua despesas para comprar a casa mais rápido."
             )
 
         elif percentual_gasto > 60:
+
             st.warning(
-                "⚠ Seus gastos estão moderados. "
-                "Tente economizar mais."
+                "⚠ Seus gastos estão moderados."
             )
 
         else:
+
             st.success(
                 "✅ Seu controle financeiro está saudável."
             )
@@ -192,7 +232,10 @@ if len(st.session_state.dados) > 0:
 
     st.subheader("📋 Lançamentos")
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(
+        df_user,
+        use_container_width=True
+    )
 
 # =====================
 # SAIR
