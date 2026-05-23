@@ -1,6 +1,3 @@
-# app.py
-
-```python
 import streamlit as st
 import pandas as pd
 import os
@@ -111,8 +108,6 @@ reserva_casa = df_user[
     df_user["Tipo"] == "🏠 Reserva Casa"
 ]["Valor"].sum()
 
-# gastos = tudo menos salário e reserva
-
 gastos = df_user[
     (df_user["Tipo"] != "💰 Salário") &
     (df_user["Tipo"] != "🏠 Reserva Casa")
@@ -190,7 +185,7 @@ st.progress(progresso)
 st.write(f"📊 Progresso: {progresso * 100:.2f}%")
 
 # =====================
-# ANÁLISE IA SIMPLES
+# ANÁLISE
 # =====================
 st.divider()
 
@@ -204,10 +199,7 @@ if salario == 0:
 
 else:
 
-    percentual = 0
-
-    if salario > 0:
-        percentual = (gastos / salario) * 100
+    percentual = (gastos / salario) * 100
 
     if percentual > 80:
 
@@ -381,11 +373,3 @@ if st.button("Sair"):
     st.session_state.usuario = ""
 
     st.rerun()
-```
-
-# requirements.txt
-
-```txt
-streamlit
-pandas
-```
