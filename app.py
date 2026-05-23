@@ -2,106 +2,158 @@ import streamlit as st
 import pandas as pd
 import os
 import hashlib
+from datetime import datetime
 
 st.set_page_config(page_title="Controle Financeiro", page_icon="🏠")
 
-USERS_FILE = "users.csv"
-ARQ = "dados.csv"
-
 # =====================
-# USUÁRIOS FIXOS AUTORIZADOS
+# USUÁRIOS AUTORIZADOS
 # =====================
 USERS_FIXOS = {
-    "43623202886": {
-        "nome": "Bruno",
-        "msg": "Olá Bruno, seja bem-vindo!"
-    },
-    "42899462830": {
-        "nome": "Ingrid",
-        "msg": "Olá Ingrid, seja bem-vinda!"
-    }
+    "43623202886": {"nome": "Bruno"},
+    "42899462830": {"nome": "Ingrid"}
 }
 
 # =====================
-# HASH SENHA
+# HASH
 # =====================
-def hash_senha(senha):
-    return hashlib.sha256(senha.encode()).hexdigest()
+def hash_senha(s):
+    return hashlib.sha256(s.encode()).hexdigest()
 
 # =====================
 # ARQUIVOS
 # =====================
-if not os.path.exists(USERS_FILE):
-    pd.DataFrame(columns=["cpf", "senha", "biometria"]).to_csv(USERS_FILE, index=False)
+ARQ_USERS = "users.csv"
+ARQ_DATA = "dados.csv"
 
-if not os.path.exists(ARQ):
-    pd.DataFrame(columns=["cpf", "data", "tipo", "descricao", "valor"]).to_csv(ARQ, index=False)
+if not os.path.exists(ARQ_USERS):
+    pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
 
-users = pd.read_csv(USERS_FILE)
+if not os.path.exists(ARQ_DATA):
+    pd.DataFrame(columns=["cpf","data","tipo","descricao","valor"]).to_csv(ARQ_DATA, index=False)
 
-# =====================
-# ESTADO
-# =====================
-if "cpf_logado" not in st.session_state:
-    st.session_state.cpf_logado = None
+users = pd.read_csv(ARQ_USERS)
+df = pd.read_csv(ARQ_DATA)
 
 # =====================
-# LOGIN CPF
+# SESSION
 # =====================
-if st.session_state.cpf_logado is None:
+if "cpf" not in st.session_state:
+    st.session_state.cpf = None
 
-    st.title("🔐 Acesso ao Sistema")
+# =====================
+# LOGIN
+# =====================
+if st.session_state.cpf is None:
 
-    cpf = st.text_input("Digite seu CPF")
+    st.title("🔐 Acesso")
+
+    cpf = st.text_input("CPF")
 
     if cpf not in USERS_FIXOS:
-        st.error("❌ CPF não autorizado")
+        st.warning("CPF não autorizado")
         st.stop()
 
-    user_info = USERS_FIXOS[cpf]
-
-    st.success(user_info["msg"])
-
-    st.write("📌 Crie sua senha e confirme o acesso")
+    st.success(f"Olá {USERS_FIXOS[cpf]['nome']}, seja bem-vindo!")
 
     senha = st.text_input("Senha", type="password")
 
-    biometria = st.checkbox("✔ Confirmo cadastro de biometria (simulado)")
+    if st.button("Entrar"):
 
-    if st.button("Entrar / Cadastrar"):
-
-        if not biometria:
-            st.warning("Você precisa confirmar a biometria (simulado)")
-            st.stop()
-
-        # verifica se já existe
+        # se já existe usuário
         if cpf in users["cpf"].values:
 
             senha_salva = users[users["cpf"] == cpf]["senha"].values[0]
 
             if hash_senha(senha) == senha_salva:
-                st.session_state.cpf_logado = cpf
+                st.session_state.cpf = cpf
                 st.rerun()
             else:
                 st.error("Senha incorreta")
 
         else:
-            # primeiro acesso -> cria conta
-            nova = pd.DataFrame([[cpf, hash_senha(senha), True]],
+            # primeiro acesso cria conta
+            nova = pd.DataFrame([[cpf, hash_senha(senha)]],
                                 columns=users.columns)
 
             users = pd.concat([users, nova], ignore_index=True)
-            users.to_csv(USERS_FILE, index=False)
+            users.to_csv(ARQ_USERS, index=False)
 
-            st.session_state.cpf_logado = cpf
-            st.success("Conta criada com sucesso!")
+            st.session_state.cpf = cpf
+            st.success("Conta criada!")
             st.rerun()
 
     st.stop()
 
 # =====================
-# USUÁRIO LOGADO
+# APP PRINCIPAL (AQUI ESTAVA FALTANDO!)
 # =====================
-nome = USERS_FIXOS[st.session_state.cpf_logado]["nome"]
+nome = USERS_FIXOS[st.session_state.cpf]["nome"]
 
-st.title(f"🏠 Olá {nome}, bem-vindo ao seu controle financeiro")
+st.title(f"🏠 Controle Financeiro de {nome}")
+
+META_CASA = 500000
+
+st.divider()
+
+# =====================
+# LANÇAR
+# =====================
+st.subheader("➕ Lançar")
+
+tipo = st.selectbox(
+    "Tipo",
+    ["💰 Salário","🏠 Reserva Casa","💸 Gasto","💡 Luz","🚿 Água","💳 Cartão","🛒 Compras"]
+)
+
+descricao = st.text_input("Descrição")
+valor = st.number_input("Valor", min_value=0.0)
+
+if st.button("Adicionar"):
+
+    data = datetime.now().strftime("%Y-%m-%d")
+
+    novo = pd.DataFrame([[st.session_state.cpf,data,tipo,descricao,valor]],
+                        columns=df.columns)
+
+    df = pd.concat([df, novo], ignore_index=True)
+    df.to_csv(ARQ_DATA, index=False)
+
+    st.success("Salvo!")
+
+st.divider()
+
+# =====================
+# FILTRAR USUÁRIO
+# =====================
+df_user = df[df["cpf"] == st.session_state.cpf]
+
+if len(df_user) == 0:
+    st.info("Sem dados ainda")
+    st.stop()
+
+# =====================
+# RESUMO
+# =====================
+salario = df_user[df_user["tipo"] == "💰 Salário"]["valor"].sum()
+reserva = df_user[df_user["tipo"] == "🏠 Reserva Casa"]["valor"].sum()
+gastos = df_user[df_user["tipo"] != "💰 Salário"]["valor"].sum()
+
+saldo = salario - gastos
+falta = META_CASA - reserva
+progresso = reserva / META_CASA
+
+st.subheader("📊 Resumo")
+
+st.metric("💰 Salário", f"R$ {salario:.2f}")
+st.metric("💸 Gastos", f"R$ {gastos:.2f}")
+st.metric("💰 Saldo", f"R$ {saldo:.2f}")
+
+st.divider()
+
+st.subheader("🏠 Casa")
+
+st.write(f"Reservado: R$ {reserva:.2f}")
+st.write(f"Falta: R$ {falta:.2f}")
+
+st.progress(min(progresso,1.0))
