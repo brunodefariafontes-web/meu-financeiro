@@ -3,31 +3,29 @@ import pandas as pd
 import os
 import hashlib
 from datetime import datetime
-import time
 
 st.set_page_config(page_title="Controle Financeiro", page_icon="🏠")
 
 # =====================
-# CONFIG
+# USUÁRIOS AUTORIZADOS
 # =====================
-USERS_FIXOS = {
-    "43623202886": {"nome": "Bruno"},
-    "42899462830": {"nome": "Ingrid"}
+USUARIOS = {
+    "43623202886": "Bruno",
+    "42899462830": "Ingrid"
 }
-
-META_CASA = 500000
 
 ARQ_USERS = "users.csv"
 ARQ_DATA = "dados.csv"
+META_CASA = 500000
 
 # =====================
-# HASH
+# HASH SENHA
 # =====================
-def hash_senha(s):
-    return hashlib.sha256(s.encode()).hexdigest()
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
 
 # =====================
-# ARQUIVOS
+# CRIAR ARQUIVOS
 # =====================
 if not os.path.exists(ARQ_USERS):
     pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
@@ -39,28 +37,13 @@ users = pd.read_csv(ARQ_USERS)
 df = pd.read_csv(ARQ_DATA)
 
 # =====================
-# SESSION STATE
+# SESSION
 # =====================
 if "cpf" not in st.session_state:
     st.session_state.cpf = None
 
-if "last_action" not in st.session_state:
-    st.session_state.last_action = time.time()
-
 # =====================
-# TIMEOUT 10 MIN
-# =====================
-def check_timeout():
-    if st.session_state.cpf is not None:
-        if time.time() - st.session_state.last_action > 600:  # 10 min
-            st.session_state.cpf = None
-            st.warning("⏳ Sessão expirada por inatividade")
-            st.rerun()
-
-check_timeout()
-
-# =====================
-# LOGIN
+# LOGIN / PRIMEIRO ACESSO
 # =====================
 if st.session_state.cpf is None:
 
@@ -68,18 +51,17 @@ if st.session_state.cpf is None:
 
     cpf = st.text_input("CPF")
 
-    if cpf not in USERS_FIXOS:
+    if cpf not in USUARIOS:
         st.warning("CPF não autorizado")
         st.stop()
 
-    st.success(f"Olá {USERS_FIXOS[cpf]['nome']}, seja bem-vindo!")
+    st.success(f"Olá {USUARIOS[cpf]}, seja bem-vindo!")
 
     senha = st.text_input("Senha", type="password")
 
-    if st.button("Entrar"):
+    if st.button("Entrar / Cadastrar"):
 
-        st.session_state.last_action = time.time()
-
+        # verifica se já existe usuário
         if cpf in users["cpf"].values:
 
             senha_salva = users[users["cpf"] == cpf]["senha"].values[0]
@@ -91,26 +73,29 @@ if st.session_state.cpf is None:
                 st.error("Senha incorreta")
 
         else:
-            nova = pd.DataFrame([[cpf, hash_senha(senha)]],
+            # PRIMEIRO ACESSO -> cria senha
+            if senha == "":
+                st.warning("Crie uma senha")
+                st.stop()
+
+            novo = pd.DataFrame([[cpf, hash_senha(senha)]],
                                 columns=users.columns)
 
-            users = pd.concat([users, nova], ignore_index=True)
+            users = pd.concat([users, novo], ignore_index=True)
             users.to_csv(ARQ_USERS, index=False)
 
             st.session_state.cpf = cpf
-            st.success("Conta criada!")
+            st.success("Conta criada com sucesso!")
             st.rerun()
 
     st.stop()
 
 # =====================
-# APP LOGADO
+# APP PRINCIPAL
 # =====================
-st.session_state.last_action = time.time()
+nome = USUARIOS[st.session_state.cpf]
 
-nome = USERS_FIXOS[st.session_state.cpf]["nome"]
-
-st.title(f"🏠 Controle Financeiro de {nome}")
+st.title(f"🏠 Controle Financeiro - {nome}")
 
 # =====================
 # LANÇAR
@@ -127,8 +112,6 @@ valor = st.number_input("Valor", min_value=0.0)
 
 if st.button("Adicionar"):
 
-    st.session_state.last_action = time.time()
-
     data = datetime.now().strftime("%Y-%m-%d")
 
     novo = pd.DataFrame([[st.session_state.cpf,data,tipo,descricao,valor]],
@@ -137,12 +120,12 @@ if st.button("Adicionar"):
     df = pd.concat([df, novo], ignore_index=True)
     df.to_csv(ARQ_DATA, index=False)
 
-    st.success("✔ Lançado!")
+    st.success("✔ Salvo!")
 
 st.divider()
 
 # =====================
-# FILTRO USER
+# FILTRO POR USUÁRIO
 # =====================
 df_user = df[df["cpf"] == st.session_state.cpf]
 
@@ -174,4 +157,4 @@ st.subheader("🏠 Casa")
 st.write(f"Reservado: R$ {reserva:.2f}")
 st.write(f"Falta: R$ {falta:.2f}")
 
-st.progress(min(progresso,1.0))
+st.progress(min(progresso, 1.0))
