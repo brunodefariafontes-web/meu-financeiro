@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
-import os
-from datetime import datetime
-import matplotlib.pyplot as plt
+
+st.title("🚀 FUNCIONOU!")
+st.write("Se você está vendo isso, o app está OK.")
