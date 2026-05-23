@@ -71,14 +71,19 @@ if not st.session_state.logado:
 
     st.subheader("🏠 Controle Financeiro")
 
-    cpf = st.text_input("Digite seu CPF")
+    cpf = st.text_input(
+        "Digite seu CPF",
+        max_chars=11
+    ).strip()
+
+    cpf = ''.join(filter(str.isdigit, cpf))
 
     if st.button("Entrar"):
 
-        if cpf in USUARIOS:
+        if str(cpf) in USUARIOS:
 
             st.session_state.logado = True
-            st.session_state.usuario = USUARIOS[cpf]
+            st.session_state.usuario = USUARIOS[str(cpf)]
 
             st.rerun()
 
@@ -93,9 +98,9 @@ if not st.session_state.logado:
 usuario = st.session_state.usuario
 
 # =====================
-# FILTRO USUÁRIO
+# DADOS GERAIS
 # =====================
-df_user = df[df["Usuario"] == usuario]
+df_user = df
 
 # =====================
 # RESUMOS
@@ -312,7 +317,7 @@ if st.button("Salvar Lançamento"):
 # =====================
 st.divider()
 
-st.subheader("📋 Seus Lançamentos")
+st.subheader("📋 Lançamentos")
 
 if len(df_user) > 0:
 
@@ -349,12 +354,20 @@ st.divider()
 st.subheader("🗑 Reiniciar Controle")
 
 st.warning(
-    "Essa ação apagará todos os seus lançamentos."
+    "Essa ação apagará todos os lançamentos."
 )
 
 if st.button("Zerar Todos os Dados"):
 
-    df = df[df["Usuario"] != usuario]
+    df = pd.DataFrame(
+        columns=[
+            "Usuario",
+            "Tipo",
+            "Descricao",
+            "Valor",
+            "Data"
+        ]
+    )
 
     df.to_csv(ARQUIVO, index=False)
 
