@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
-import matplotlib.pyplot as plt
 
 # =====================
 # CONFIG
@@ -13,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-st.title("🏠💰 Controle Financeiro Inteligente")
+st.title("🏠 Controle Financeiro Inteligente")
 
 META_CASA = 500000
 ARQUIVO = "dados.csv"
@@ -28,16 +27,16 @@ if not os.path.exists(ARQUIVO):
 df = pd.read_csv(ARQUIVO)
 
 # =====================
-# SIDEBAR
+# MENU
 # =====================
-modo = st.sidebar.selectbox("Menu", ["📊 Dashboard", "➕ Lançar"])
+menu = st.sidebar.radio("Menu", ["📊 Resumo", "➕ Lançar"])
 
 # =====================
-# INPUT
+# LANÇAR
 # =====================
-if modo == "➕ Lançar":
+if menu == "➕ Lançar":
 
-    st.subheader("Adicionar lançamento")
+    st.subheader("Novo lançamento")
 
     tipo = st.selectbox(
         "Tipo",
@@ -59,7 +58,7 @@ if modo == "➕ Lançar":
     descricao = st.text_input("Descrição")
     valor = st.number_input("Valor (R$)", min_value=0.0)
 
-    if st.button("Salvar"):
+    if st.button("Adicionar"):
 
         data = datetime.now().strftime("%Y-%m-%d")
 
@@ -69,10 +68,10 @@ if modo == "➕ Lançar":
         df = pd.concat([df, novo], ignore_index=True)
         df.to_csv(ARQUIVO, index=False)
 
-        st.success("✔ Salvo!")
+        st.success("✔ Salvo com sucesso!")
 
 # =====================
-# DASHBOARD
+# RESUMO
 # =====================
 else:
 
@@ -80,29 +79,17 @@ else:
         st.warning("Sem dados ainda.")
         st.stop()
 
-    # =====================
-    # FILTRO MES
-    # =====================
-    df["data"] = pd.to_datetime(df["data"])
-    df["mes"] = df["data"].dt.month
-
-    mes_atual = datetime.now().month
-    df_mes = df[df["mes"] == mes_atual]
-
-    # =====================
-    # CÁLCULOS
-    # =====================
-    salario = df["valor"][df["tipo"] == "💰 Salário"].sum()
-    reserva = df["valor"][df["tipo"] == "🏠 Reserva Casa"].sum()
-    gastos = df["valor"][df["tipo"] != "💰 Salário"].sum()
+    salario = df[df["tipo"] == "💰 Salário"]["valor"].sum()
+    reserva = df[df["tipo"] == "🏠 Reserva Casa"]["valor"].sum()
+    gastos = df[df["tipo"] != "💰 Salário"]["valor"].sum()
 
     saldo = salario - gastos
 
-    progresso = reserva / META_CASA
     falta = META_CASA - reserva
+    progresso = reserva / META_CASA if META_CASA > 0 else 0
 
     # =====================
-    # CARDS
+    # PAINEL
     # =====================
     col1, col2, col3 = st.columns(3)
 
@@ -113,9 +100,9 @@ else:
     st.divider()
 
     # =====================
-    # META CASA
+    # CASA
     # =====================
-    st.subheader("🏠 Meta da Casa")
+    st.subheader("🏠 Meta da Casa (R$ 500.000)")
 
     st.write(f"💵 Reservado: R$ {reserva:,.2f}")
     st.write(f"🏠 Falta: R$ {falta:,.2f}")
@@ -123,53 +110,29 @@ else:
     st.progress(min(progresso, 1.0))
 
     if progresso >= 1:
-        st.success("🎉 CASA ALCANÇADA!")
+        st.success("🎉 Você já atingiu a meta da casa!")
     elif progresso >= 0.7:
-        st.warning("🟡 Você está perto da casa!")
+        st.warning("🟡 Quase lá! Continue economizando.")
     else:
-        st.info("🔵 Continue economizando")
+        st.info("🔵 Foco na economia para atingir a casa.")
+
+    st.divider()
 
     # =====================
-    # ALERTA ECONOMIA
+    # ALERTA SIMPLES
     # =====================
     if salario > 0:
+        porcentagem = (gastos / salario) * 100
 
-        uso = (gastos / salario) * 100
-
-        st.subheader("🧠 Modo economia")
-
-        if uso > 85:
-            st.error("🔴 Você está gastando demais! corte agora se quer a casa.")
-        elif uso > 70:
-            st.warning("🟡 Atenção: reduza gastos desnecessários.")
+        if porcentagem > 85:
+            st.error("🔴 Você está gastando demais!")
+        elif porcentagem > 70:
+            st.warning("🟡 Atenção com seus gastos.")
         else:
-            st.success("🟢 Controle saudável")
-
-    # =====================
-    # PREVISÃO CASA
-    # =====================
-    if saldo > 0:
-        meses = falta / saldo if saldo > 0 else 0
-
-        st.subheader("⏳ Previsão")
-
-        if meses > 0:
-            st.info(f"Se continuar assim, você compra a casa em ~{meses:.1f} meses")
-
-    # =====================
-    # GRÁFICO
-    # =====================
-    st.subheader("📊 Gastos por categoria")
-
-    gastos_cat = df[df["tipo"] != "💰 Salário"].groupby("tipo")["valor"].sum()
-
-    fig, ax = plt.subplots()
-    gastos_cat.plot(kind="bar", ax=ax)
-
-    st.pyplot(fig)
+            st.success("🟢 Você está no controle.")
 
     # =====================
     # HISTÓRICO
     # =====================
-    st.subheader("📋 Últimos lançamentos")
+    st.subheader("📋 Últimos registros")
     st.dataframe(df.tail(10), use_container_width=True)
