@@ -3,40 +3,45 @@ import pandas as pd
 import os
 from datetime import datetime
 
-st.set_page_config(page_title="Controle Financeiro", layout="centered")
+st.set_page_config(page_title="Controle Financeiro Inteligente", layout="centered")
 
-st.title("🏠 Controle Financeiro + Meta da Casa")
+st.title("🏠 Controle Financeiro Inteligente")
 
-# =====================
-# CONFIGURAÇÕES FIXAS
-# =====================
 META_CASA = 500000
-
 ARQUIVO = "dados.csv"
 
 # =====================
 # CRIAR ARQUIVO
 # =====================
 if not os.path.exists(ARQUIVO):
-    df = pd.DataFrame(columns=["data", "tipo", "descricao", "valor"])
+    df = pd.DataFrame(columns=["data", "tipo", "categoria", "descricao", "valor"])
     df.to_csv(ARQUIVO, index=False)
 
 df = pd.read_csv(ARQUIVO)
 
 # =====================
-# INPUT PRINCIPAL (1 PÁGINA)
+# CATEGORIAS COMPLETAS
 # =====================
-st.subheader("➕ Lançar movimento")
+categorias = [
+    "💰 Salário",
+    "🏠 Reserva Casa",
+    "💡 Luz",
+    "🚿 Água",
+    "📶 Internet",
+    "💳 Cartão",
+    "🏠 Aluguel",
+    "🛒 Comprinhas",
+    "🍔 Lazer",
+    "🛍 Mercado",
+    "💸 Outros"
+]
 
-tipo = st.selectbox(
-    "Tipo",
-    [
-        "💰 Salário",
-        "💸 Gasto",
-        "🏠 Reserva Casa"
-    ]
-)
+# =====================
+# INPUT
+# =====================
+st.subheader("➕ Novo lançamento")
 
+tipo = st.selectbox("Tipo", categorias)
 descricao = st.text_input("Descrição (opcional)")
 valor = st.number_input("Valor (R$)", min_value=0.0)
 
@@ -44,13 +49,13 @@ if st.button("Adicionar"):
 
     data = datetime.now().strftime("%Y-%m-%d")
 
-    novo = pd.DataFrame([[data, tipo, descricao, valor]],
+    novo = pd.DataFrame([[data, tipo, tipo, descricao, valor]],
                         columns=df.columns)
 
     df = pd.concat([df, novo], ignore_index=True)
     df.to_csv(ARQUIVO, index=False)
 
-    st.success("✔ Lançado com sucesso!")
+    st.success("✔ Registrado!")
 
 st.divider()
 
@@ -58,51 +63,83 @@ st.divider()
 # CÁLCULOS
 # =====================
 salario = df[df["tipo"] == "💰 Salário"]["valor"].sum()
-gastos = df[df["tipo"] == "💸 Gasto"]["valor"].sum()
 reserva = df[df["tipo"] == "🏠 Reserva Casa"]["valor"].sum()
+
+gastos = df[df["tipo"] != "💰 Salário"]["valor"].sum()
 
 saldo = salario - gastos
 
-falta_casa = META_CASA - reserva
+falta = META_CASA - reserva
 progresso = reserva / META_CASA if META_CASA > 0 else 0
 
+# gastos por grupo
+fixos = df[df["tipo"].isin(["💡 Luz","🚿 Água","📶 Internet","💳 Cartão","🏠 Aluguel"])]["valor"].sum()
+variaveis = df[df["tipo"].isin(["🛒 Comprinhas","🍔 Lazer","🛍 Mercado","💸 Outros"])]["valor"].sum()
+
 # =====================
-# PAINEL PRINCIPAL
+# PAINEL
 # =====================
 st.subheader("📊 Visão geral")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("💰 Salário total", f"R$ {salario:,.2f}")
+col1.metric("💰 Salário", f"R$ {salario:,.2f}")
 col2.metric("💸 Gastos", f"R$ {gastos:,.2f}")
-col3.metric("💰 Saldo atual", f"R$ {saldo:,.2f}")
+col3.metric("💰 Saldo", f"R$ {saldo:,.2f}")
 
 st.divider()
 
 # =====================
-# META DA CASA
+# META CASA
 # =====================
 st.subheader("🏠 Meta da Casa (R$ 500.000)")
 
-st.write(f"💵 Já reservado: **R$ {reserva:,.2f}**")
-st.write(f"🏠 Falta: **R$ {falta_casa:,.2f}**")
+st.write(f"💵 Reservado: **R$ {reserva:,.2f}**")
+st.write(f"🏠 Falta: **R$ {falta:,.2f}**")
 
 st.progress(min(progresso, 1.0))
+st.write(f"📊 Progresso: **{progresso*100:.2f}%**")
 
-st.write(f"📊 Progresso: **{progresso * 100:.2f}%**")
+# =====================
+# ANÁLISE INTELIGENTE
+# =====================
+st.subheader("🧠 Análise financeira")
 
-# ALERTA INTELIGENTE CASA
-if progresso >= 1:
-    st.success("🏠 META ALCANÇADA! Você já pode comprar a casa 🎉")
-elif progresso >= 0.7:
-    st.warning("🟡 Você já está perto da meta, continue firme!")
-else:
-    st.info("🔵 Construindo patrimônio... continue reservando!")
+if salario > 0:
+    gasto_pct = (gastos / salario) * 100
 
+    if gasto_pct > 85:
+        st.error("🔴 Você está gastando demais! Isso prejudica MUITO a compra da casa.")
+        st.write("👉 Corte principalmente: Comprinhas e Cartão.")
+    elif gasto_pct > 70:
+        st.warning("🟡 Atenção: seus gastos estão altos.")
+        st.write("👉 Tente reduzir gastos variáveis para acelerar a casa.")
+    else:
+        st.success("🟢 Você está no caminho certo da casa!")
+
+# =====================
+# ALERTA POR TIPO
+# =====================
 st.divider()
+
+st.subheader("📌 Onde ajustar")
+
+if variaveis > fixos:
+    st.warning("⚠️ Seus gastos variáveis estão maiores que os fixos.")
+    st.write("👉 Diminua: comprinhas, lazer e mercado não essencial.")
+else:
+    st.success("✔ Gastos estão bem controlados.")
+
+if variaveis > salario * 0.3:
+    st.error("🔴 Gastos supérfluos muito altos!")
+    st.write("👉 Para acelerar a casa: reduza agora.")
+else:
+    st.info("💡 Gastos variáveis dentro do aceitável.")
 
 # =====================
 # HISTÓRICO
 # =====================
+st.divider()
+
 st.subheader("📋 Últimos registros")
 st.dataframe(df.tail(10), use_container_width=True)
