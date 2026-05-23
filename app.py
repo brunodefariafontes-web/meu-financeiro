@@ -16,32 +16,46 @@ def hash_senha(s):
     return hashlib.sha256(s.encode()).hexdigest()
 
 # =====================
-# CSV
+# ARQUIVO
 # =====================
 if not os.path.exists(ARQ_USERS):
     pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
 
 users = pd.read_csv(ARQ_USERS)
 
-# garante estrutura correta
-if "cpf" not in users.columns or "senha" not in users.columns:
+if "cpf" not in users.columns:
     users = pd.DataFrame(columns=["cpf", "senha"])
 
 # =====================
-# SESSION
+# SESSION (SIMPLES E SEGURA)
 # =====================
-if "cpf" not in st.session_state:
-    st.session_state.cpf = ""
 if "logado" not in st.session_state:
     st.session_state.logado = False
+
+if "cpf" not in st.session_state:
+    st.session_state.cpf = ""
+
+# =====================
+# APP JÁ LOGADO
+# =====================
+if st.session_state.logado:
+
+    st.title(f"🏠 Bem-vindo {USUARIOS[st.session_state.cpf]}")
+    st.success("Login realizado com sucesso ✔")
+
+    if st.button("Sair"):
+        st.session_state.logado = False
+        st.session_state.cpf = ""
+        st.rerun()
+
+    st.stop()
 
 # =====================
 # LOGIN / CADASTRO
 # =====================
 st.title("🔐 Acesso ao Sistema")
 
-cpf = st.text_input("CPF", value=st.session_state.cpf)
-st.session_state.cpf = cpf
+cpf = st.text_input("CPF")
 
 if cpf == "":
     st.stop()
@@ -52,8 +66,10 @@ if cpf not in USUARIOS:
 
 st.success(f"Olá {USUARIOS[cpf]}")
 
+st.session_state.cpf = cpf
+
 # =====================
-# SE JÁ EXISTE → LOGIN
+# EXISTE? LOGIN / SENÃO CADASTRO
 # =====================
 if cpf in users["cpf"].values:
 
@@ -69,9 +85,6 @@ if cpf in users["cpf"].values:
         else:
             st.error("Senha incorreta")
 
-# =====================
-# PRIMEIRO ACESSO → CADASTRO
-# =====================
 else:
 
     senha1 = st.text_input("Criar senha", type="password")
@@ -95,17 +108,4 @@ else:
         users.to_csv(ARQ_USERS, index=False)
 
         st.session_state.logado = True
-        st.rerun()
-
-# =====================
-# APP (ENTRA SEMPRE AQUI SE LOGADO)
-# =====================
-if st.session_state.logado:
-
-    st.title(f"🏠 Bem-vindo {USUARIOS[cpf]}")
-    st.success("Login realizado com sucesso ✔")
-
-    if st.button("Sair"):
-        st.session_state.logado = False
-        st.session_state.cpf = ""
         st.rerun()
