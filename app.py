@@ -5,105 +5,104 @@ from datetime import datetime
 
 st.set_page_config(page_title="Controle Financeiro", layout="centered")
 
-st.title("💰 Controle Financeiro Inteligente")
-
-ARQUIVO = "dados.csv"
-CONFIG = "config.csv"
+st.title("🏠 Controle Financeiro + Meta da Casa")
 
 # =====================
-# CRIAR ARQUIVOS SE NÃO EXISTIREM
+# CONFIGURAÇÕES FIXAS
+# =====================
+META_CASA = 500000
+
+ARQUIVO = "dados.csv"
+
+# =====================
+# CRIAR ARQUIVO
 # =====================
 if not os.path.exists(ARQUIVO):
     df = pd.DataFrame(columns=["data", "tipo", "descricao", "valor"])
     df.to_csv(ARQUIVO, index=False)
 
-if not os.path.exists(CONFIG):
-    cfg = pd.DataFrame([[0.0]], columns=["saldo_inicial"])
-    cfg.to_csv(CONFIG, index=False)
-
 df = pd.read_csv(ARQUIVO)
-cfg = pd.read_csv(CONFIG)
-
-saldo_inicial = float(cfg.loc[0, "saldo_inicial"])
-
-menu = st.sidebar.radio("Menu", ["⚙ Configuração", "➕ Lançamentos", "📊 Resumo"])
 
 # =====================
-# CONFIGURAÇÃO
+# INPUT PRINCIPAL (1 PÁGINA)
 # =====================
-if menu == "⚙ Configuração":
+st.subheader("➕ Lançar movimento")
 
-    st.subheader("Definir saldo inicial")
+tipo = st.selectbox(
+    "Tipo",
+    [
+        "💰 Salário",
+        "💸 Gasto",
+        "🏠 Reserva Casa"
+    ]
+)
 
-    novo_saldo = st.number_input(
-        "Quanto você tem hoje? (R$)",
-        min_value=0.0,
-        value=saldo_inicial,
-        format="%.2f"
-    )
+descricao = st.text_input("Descrição (opcional)")
+valor = st.number_input("Valor (R$)", min_value=0.0)
 
-    if st.button("Salvar saldo inicial"):
-        cfg.loc[0, "saldo_inicial"] = novo_saldo
-        cfg.to_csv(CONFIG, index=False)
-        st.success("Saldo atualizado!")
+if st.button("Adicionar"):
 
-# =====================
-# LANÇAMENTOS
-# =====================
-elif menu == "➕ Lançamentos":
+    data = datetime.now().strftime("%Y-%m-%d")
 
-    tipo = st.selectbox(
-        "Tipo",
-        ["💰 Salário", "🛒 Compra", "💸 Gasto", "🧾 Conta"]
-    )
+    novo = pd.DataFrame([[data, tipo, descricao, valor]],
+                        columns=df.columns)
 
-    descricao = st.text_input("Descrição")
-    valor = st.number_input("Valor (R$)", min_value=0.0)
+    df = pd.concat([df, novo], ignore_index=True)
+    df.to_csv(ARQUIVO, index=False)
 
-    if st.button("Adicionar"):
+    st.success("✔ Lançado com sucesso!")
 
-        data = datetime.now().strftime("%Y-%m-%d")
-
-        novo = pd.DataFrame([[data, tipo, descricao, valor]],
-                            columns=df.columns)
-
-        df = pd.concat([df, novo], ignore_index=True)
-        df.to_csv(ARQUIVO, index=False)
-
-        st.success("Lançado com sucesso!")
+st.divider()
 
 # =====================
-# RESUMO
+# CÁLCULOS
 # =====================
-elif menu == "📊 Resumo":
+salario = df[df["tipo"] == "💰 Salário"]["valor"].sum()
+gastos = df[df["tipo"] == "💸 Gasto"]["valor"].sum()
+reserva = df[df["tipo"] == "🏠 Reserva Casa"]["valor"].sum()
 
-    if len(df) == 0:
-        st.warning("Sem dados ainda.")
-        st.stop()
+saldo = salario - gastos
 
-    salarios = df[df["tipo"] == "💰 Salário"]["valor"].sum()
-    gastos = df[df["tipo"] != "💰 Salário"]["valor"].sum()
+falta_casa = META_CASA - reserva
+progresso = reserva / META_CASA if META_CASA > 0 else 0
 
-    saldo_atual = saldo_inicial + salarios - gastos
+# =====================
+# PAINEL PRINCIPAL
+# =====================
+st.subheader("📊 Visão geral")
 
-    st.subheader("💰 Seu dinheiro")
+col1, col2, col3 = st.columns(3)
 
-    st.metric("Saldo inicial", f"R$ {saldo_inicial:.2f}")
-    st.metric("Salários recebidos", f"R$ {salarios:.2f}")
-    st.metric("Gastos totais", f"R$ {gastos:.2f}")
-    st.metric("💰 Saldo atual", f"R$ {saldo_atual:.2f}")
+col1.metric("💰 Salário total", f"R$ {salario:,.2f}")
+col2.metric("💸 Gastos", f"R$ {gastos:,.2f}")
+col3.metric("💰 Saldo atual", f"R$ {saldo:,.2f}")
 
-    st.divider()
+st.divider()
 
-    # ALERTA INTELIGENTE
-    if saldo_atual < saldo_inicial * 0.2:
-        st.error("🔴 Atenção: seu saldo está muito baixo!")
-    elif saldo_atual < saldo_inicial * 0.5:
-        st.warning("🟡 Cuidado com os gastos.")
-    else:
-        st.success("🟢 Situação financeira saudável.")
+# =====================
+# META DA CASA
+# =====================
+st.subheader("🏠 Meta da Casa (R$ 500.000)")
 
-    st.divider()
+st.write(f"💵 Já reservado: **R$ {reserva:,.2f}**")
+st.write(f"🏠 Falta: **R$ {falta_casa:,.2f}**")
 
-    st.subheader("📋 Últimos lançamentos")
-    st.dataframe(df.tail(10), use_container_width=True)
+st.progress(min(progresso, 1.0))
+
+st.write(f"📊 Progresso: **{progresso * 100:.2f}%**")
+
+# ALERTA INTELIGENTE CASA
+if progresso >= 1:
+    st.success("🏠 META ALCANÇADA! Você já pode comprar a casa 🎉")
+elif progresso >= 0.7:
+    st.warning("🟡 Você já está perto da meta, continue firme!")
+else:
+    st.info("🔵 Construindo patrimônio... continue reservando!")
+
+st.divider()
+
+# =====================
+# HISTÓRICO
+# =====================
+st.subheader("📋 Últimos registros")
+st.dataframe(df.tail(10), use_container_width=True)
