@@ -16,55 +16,46 @@ def hash_senha(s):
     return hashlib.sha256(s.encode()).hexdigest()
 
 # =====================
-# ARQUIVO
+# CSV
 # =====================
 if not os.path.exists(ARQ_USERS):
     pd.DataFrame(columns=["cpf", "senha"]).to_csv(ARQ_USERS, index=False)
 
 users = pd.read_csv(ARQ_USERS)
 
-# garante estrutura
-if "cpf" not in users.columns:
+# garante estrutura correta
+if "cpf" not in users.columns or "senha" not in users.columns:
     users = pd.DataFrame(columns=["cpf", "senha"])
 
 # =====================
-# SESSION STATE
+# SESSION
 # =====================
 if "cpf" not in st.session_state:
-    st.session_state.cpf = None
-
-if "etapa" not in st.session_state:
-    st.session_state.etapa = "cpf"   # cpf / login / cadastro
-
-# =====================
-# TELA CPF
-# =====================
-if st.session_state.cpf is None:
-
-    st.title("🔐 Sistema de Acesso")
-
-    cpf = st.text_input("CPF")
-
-    if cpf == "":
-        st.stop()
-
-    if cpf not in USUARIOS:
-        st.warning("CPF não autorizado")
-        st.stop()
-
-    st.success(f"Olá {USUARIOS[cpf]}")
-
-    st.session_state.cpf = cpf
+    st.session_state.cpf = ""
+if "logado" not in st.session_state:
+    st.session_state.logado = False
 
 # =====================
-# DECISÃO LOGIN OU CADASTRO
+# LOGIN / CADASTRO
 # =====================
-cpf = st.session_state.cpf
+st.title("🔐 Acesso ao Sistema")
 
-# SE JÁ TEM SENHA → LOGIN
+cpf = st.text_input("CPF", value=st.session_state.cpf)
+st.session_state.cpf = cpf
+
+if cpf == "":
+    st.stop()
+
+if cpf not in USUARIOS:
+    st.warning("CPF não autorizado")
+    st.stop()
+
+st.success(f"Olá {USUARIOS[cpf]}")
+
+# =====================
+# SE JÁ EXISTE → LOGIN
+# =====================
 if cpf in users["cpf"].values:
-
-    st.subheader("🔑 Login")
 
     senha = st.text_input("Senha", type="password")
 
@@ -73,15 +64,15 @@ if cpf in users["cpf"].values:
         senha_salva = users.loc[users["cpf"] == cpf, "senha"].values[0]
 
         if hash_senha(senha) == senha_salva:
-            st.session_state.etapa = "logado"
+            st.session_state.logado = True
             st.rerun()
         else:
             st.error("Senha incorreta")
 
-# SE NÃO TEM → CADASTRO
+# =====================
+# PRIMEIRO ACESSO → CADASTRO
+# =====================
 else:
-
-    st.subheader("🆕 Criar conta")
 
     senha1 = st.text_input("Criar senha", type="password")
     senha2 = st.text_input("Confirmar senha", type="password")
@@ -96,7 +87,6 @@ else:
             st.error("Senhas não coincidem")
             st.stop()
 
-        # salva senha
         users = pd.concat([
             users,
             pd.DataFrame([[cpf, hash_senha(senha1)]], columns=["cpf","senha"])
@@ -104,20 +94,18 @@ else:
 
         users.to_csv(ARQ_USERS, index=False)
 
-        # 🔥 MUITO IMPORTANTE: já loga depois do cadastro
-        st.session_state.etapa = "logado"
+        st.session_state.logado = True
         st.rerun()
 
 # =====================
-# APP LOGADO
+# APP (ENTRA SEMPRE AQUI SE LOGADO)
 # =====================
-if st.session_state.get("etapa") == "logado":
+if st.session_state.logado:
 
     st.title(f"🏠 Bem-vindo {USUARIOS[cpf]}")
-
     st.success("Login realizado com sucesso ✔")
 
     if st.button("Sair"):
-        st.session_state.cpf = None
-        st.session_state.etapa = "cpf"
+        st.session_state.logado = False
+        st.session_state.cpf = ""
         st.rerun()
