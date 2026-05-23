@@ -233,84 +233,85 @@ st.divider()
 
 st.subheader("➕ Novo Lançamento")
 
-col_a, col_b = st.columns(2)
+with st.form("form_lancamento", clear_on_submit=True):
 
-with col_a:
+    col_a, col_b = st.columns(2)
 
-    tipo = st.selectbox(
-        "Tipo",
-        [
-            "💰 Salário",
-            "🏠 Reserva Casa",
-            "💳 Cartão",
-            "💡 Luz",
-            "🚿 Água",
-            "🛒 Compras",
-            "🍔 Alimentação",
-            "🚗 Transporte",
-            "📱 Internet",
-            "🏥 Saúde",
-            "🎮 Lazer",
-            "📦 Outros"
-        ]
-    )
+    with col_a:
 
-with col_b:
-
-    valor = st.number_input(
-        "Valor",
-        min_value=0.0,
-        step=1.0
-    )
-
-descricao = st.text_input("Descrição")
-
-# =====================
-# ALERTA ANTES DO GASTO
-# =====================
-if tipo != "💰 Salário":
-
-    if valor > 1000:
-
-        st.error(
-            "⚠ Valor alto detectado. "
-            "Pense na casa antes de concluir esse gasto."
+        tipo = st.selectbox(
+            "Tipo",
+            [
+                "💰 Salário",
+                "🏠 Reserva Casa",
+                "💳 Cartão",
+                "💡 Luz",
+                "🚿 Água",
+                "🛒 Compras",
+                "🍔 Alimentação",
+                "🚗 Transporte",
+                "📱 Internet",
+                "🏥 Saúde",
+                "🎮 Lazer",
+                "📦 Outros"
+            ]
         )
 
-    elif valor > 300:
+    with col_b:
 
-        st.warning(
-            "⚠ Esse gasto pode atrasar sua meta da casa."
+        valor = st.number_input(
+            "Valor",
+            min_value=0.0,
+            step=1.0
         )
 
-    elif valor > 0:
+    descricao = st.text_input("Descrição")
 
-        st.info(
-            "🏠 Pequenos gastos recorrentes também impactam sua meta."
-        )
+    # =====================
+    # ALERTA ANTES DO GASTO
+    # =====================
+    if tipo != "💰 Salário":
 
-# =====================
-# SALVAR
-# =====================
-if st.button("Salvar Lançamento"):
+        if valor > 1000:
 
-    novo = pd.DataFrame([
-        {
-            "Usuario": usuario,
-            "Tipo": tipo,
-            "Descricao": descricao,
-            "Valor": valor,
-            "Data": datetime.now().strftime("%d/%m/%Y %H:%M")
-        }
-    ])
+            st.error(
+                "⚠ Valor alto detectado. "
+                "Pense na casa antes de concluir esse gasto."
+            )
 
-    df = pd.concat([df, novo], ignore_index=True)
+        elif valor > 300:
 
-    df.to_csv(ARQUIVO, index=False)
+            st.warning(
+                "⚠ Esse gasto pode atrasar sua meta da casa."
+            )
 
-    st.success("Lançamento salvo com sucesso ✔")
+        elif valor > 0:
 
-    st.rerun()
+            st.info(
+                "🏠 Pequenos gastos recorrentes também impactam sua meta."
+            )
+
+    salvar = st.form_submit_button("Salvar Lançamento")
+
+    if salvar:
+
+        novo = pd.DataFrame([
+            {
+                "Usuario": usuario,
+                "Tipo": tipo,
+                "Descricao": descricao,
+                "Valor": valor,
+                "Data": datetime.now().strftime("%d/%m/%Y %H:%M")
+            }
+        ])
+
+        df = pd.concat([df, novo], ignore_index=True)
+
+        df.to_csv(ARQUIVO, index=False)
+
+        st.success("Lançamento salvo com sucesso ✔")
+
+        st.rerun()
 
 # =====================
 # LANÇAMENTOS
@@ -321,10 +322,43 @@ st.subheader("📋 Lançamentos")
 
 if len(df_user) > 0:
 
-    st.dataframe(
-        df_user.sort_index(ascending=False),
-        use_container_width=True
-    )
+    df_exibir = df_user.sort_index(
+        ascending=False
+    ).reset_index()
+
+    for i, row in df_exibir.iterrows():
+
+        with st.container():
+
+            col1, col2, col3, col4, col5 = st.columns(
+                [2, 3, 2, 2, 1]
+            )
+
+            col1.write(row["Tipo"])
+
+            col2.write(row["Descricao"])
+
+            col3.write(f'R$ {row["Valor"]:,.2f}')
+
+            col4.write(row["Data"])
+
+            # =====================
+            # APAGAR
+            # =====================
+            if col5.button(
+                "🗑",
+                key=f"delete_{row['index']}"
+            ):
+
+                df = df.drop(row["index"])
+
+                df.to_csv(ARQUIVO, index=False)
+
+                st.success("Lançamento apagado ✔")
+
+                st.rerun()
+
+            st.divider()
 
 else:
 
