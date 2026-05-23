@@ -318,51 +318,79 @@ with st.form("form_lancamento", clear_on_submit=True):
 # =====================
 st.divider()
 
-st.subheader("📋 Lançamentos")
+st.subheader("📋 Histórico de Lançamentos")
 
 if len(df_user) > 0:
 
-    df_exibir = df_user.sort_index(
-        ascending=False
-    ).reset_index()
+    df_user["DataFormatada"] = pd.to_datetime(
+        df_user["Data"],
+        format="%d/%m/%Y %H:%M",
+        errors="coerce"
+    )
 
-    for i, row in df_exibir.iterrows():
+    df_user["Mes"] = df_user[
+        "DataFormatada"
+    ].dt.strftime("%B %Y")
 
-        with st.container():
+    meses = df_user["Mes"].dropna().unique()[::-1]
 
-            col1, col2, col3, col4, col5 = st.columns(
-                [2, 3, 2, 2, 1]
+    for mes in meses:
+
+        with st.expander(
+            f"📅 {mes}",
+            expanded=False
+        ):
+
+            df_mes = df_user[
+                df_user["Mes"] == mes
+            ].sort_values(
+                by="DataFormatada",
+                ascending=False
             )
 
-            col1.write(row["Tipo"])
+            for i, row in df_mes.iterrows():
 
-            col2.write(row["Descricao"])
+                col1, col2, col3, col4, col5 = st.columns(
+                    [2, 3, 2, 2, 1]
+                )
 
-            col3.write(f'R$ {row["Valor"]:,.2f}')
+                col1.write(row["Tipo"])
 
-            col4.write(row["Data"])
+                col2.write(row["Descricao"])
 
-            # =====================
-            # APAGAR
-            # =====================
-            if col5.button(
-                "🗑",
-                key=f"delete_{row['index']}"
-            ):
+                col3.write(
+                    f'R$ {row["Valor"]:,.2f}'
+                )
 
-                df = df.drop(row["index"])
+                col4.write(
+                    row["Data"]
+                )
 
-                df.to_csv(ARQUIVO, index=False)
+                if col5.button(
+                    "🗑",
+                    key=f"delete_{i}"
+                ):
 
-                st.success("Lançamento apagado ✔")
+                    df = df.drop(i)
 
-                st.rerun()
+                    df.to_csv(
+                        ARQUIVO,
+                        index=False
+                    )
 
-            st.divider()
+                    st.success(
+                        "Lançamento apagado ✔"
+                    )
+
+                    st.rerun()
+
+                st.divider()
 
 else:
 
-    st.info("Nenhum lançamento encontrado.")
+    st.info(
+        "Nenhum lançamento encontrado."
+    )
 
 # =====================
 # EXPORTAR CSV
